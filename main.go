@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -20,6 +22,8 @@ func main() {
 			door2_1(scan_strings())
 		case "2_2":
 			door2_2(scan_strings())
+		case "3_1":
+			door3_1()
 		default:
 			fmt.Println("Invalid door!")
 		}
@@ -139,4 +143,68 @@ func hammingDistance(a string, b string) (distance int, lastDiff rune) {
 		}
 	}
 	return
+}
+
+type claim struct {
+	id     int
+	x      int
+	y      int
+	width  int
+	height int
+}
+
+func door3_1() {
+	const size = 1000
+	scanner := bufio.NewScanner(os.Stdin)
+	claims := [size][size][]claim{}
+	var claims_re = regexp.MustCompile(`#(\d+) @ (\d+),(\d+): (\d+)x(\d+)`)
+
+	overlaps := 0
+	for scanner.Scan() {
+
+		line := scanner.Text()
+		matches := claims_re.FindStringSubmatch(line)
+		id, _ := strconv.Atoi(matches[1])
+		x, _ := strconv.Atoi(matches[2])
+		y, _ := strconv.Atoi(matches[3])
+		w, _ := strconv.Atoi(matches[4])
+		h, _ := strconv.Atoi(matches[5])
+		c := claim{id, x, y, w, h}
+		for i := x; i < x+w; i++ {
+			for j := y; j < y+h; j++ {
+				claims[i][j] = append(claims[i][j], c)
+				if len(claims[i][j]) == 2 {
+					overlaps++
+				}
+			}
+		}
+	}
+	fmt.Println("Overlapping size: ", overlaps)
+
+	// Nasty code o'hoy!
+	for i := 0; i < size; i++ {
+		for j := 0; j < size; j++ {
+			claims_in_bucket := claims[i][j]
+			// check if claim is no overlap candidate
+			if len(claims_in_bucket) == 1 && claims_in_bucket[0].x == i && claims_in_bucket[0].y == j {
+				no_overlap_found := true
+				c2 := claims_in_bucket[0]
+
+				// exit loop early if no_overlap_found is false
+				for a := c2.x; no_overlap_found && a < c2.x+c2.width; a++ {
+					for b := c2.y; no_overlap_found && b < c2.y+c2.height; b++ {
+						// check if there is overlap at position a,b
+						if len(claims[a][b]) != 1 {
+							no_overlap_found = false
+						}
+					}
+				}
+				// Found the non overlapping claim!
+				if no_overlap_found {
+					fmt.Println("Non overlapping claim: ", c2.id)
+				}
+			}
+		}
+	}
+
 }

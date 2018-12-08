@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"regexp"
 	"sort"
@@ -30,6 +31,8 @@ func main() {
 			door4(scan_strings())
 		case "5":
 			door5(scan_strings())
+		case "6":
+			door6(scan_strings())
 		default:
 			fmt.Println("Invalid door!")
 		}
@@ -357,4 +360,124 @@ func collapse(line string) int {
 	}
 
 	return len(remaining)
+}
+
+type point struct {
+	x           int
+	y           int
+	id          int
+	touchesEdge bool
+}
+
+func door6(lines []string) {
+	points := make([]*point, 0)
+	pointRe := regexp.MustCompile(`(\d+), (\d+)`)
+
+	maxX := 0
+	maxY := 0
+	minX := math.MaxInt64
+	minY := math.MaxInt64
+
+	for i, line := range lines {
+		matches := pointRe.FindStringSubmatch(line)
+		x, _ := strconv.Atoi(matches[1])
+		y, _ := strconv.Atoi(matches[2])
+
+		points = append(points, &point{x, y, i, false})
+		if maxX < x {
+			maxX = x
+		}
+		if minX > x {
+			minX = x
+		}
+
+		if maxY < y {
+			maxY = y
+		}
+		if minY > y {
+			minY = y
+		}
+
+	}
+	counts := make([]int, len(points))
+	for x := minX; x <= maxX; x++ {
+		for y := minY; y <= maxY; y++ {
+			minDist := math.MaxInt64
+			var minP *point
+			disputed := false
+			for _, p := range points {
+				dist := manhattanDistance(x, y, p)
+				if dist < minDist {
+					minDist = dist
+					minP = p
+					disputed = false
+				} else {
+					disputed = disputed || dist == minDist
+				}
+			}
+
+			if !disputed {
+				counts[minP.id] += 1
+			}
+			if x == maxX || x == minX || y == maxY || y == minY {
+				minP.touchesEdge = true
+			}
+
+		}
+	}
+	fmt.Println()
+	maxCount := 0
+	for _, p := range points {
+
+		count := counts[p.id]
+		if !p.touchesEdge {
+			if maxCount < count {
+				maxCount = count
+			}
+		}
+
+	}
+
+	fmt.Println("largest:", maxCount)
+	minX = 0
+	minY = 0
+	below10kCount := 0
+	for x := minX; x < maxX; x++ {
+		for y := minY; y < maxY; y++ {
+			totDist := 0
+			for _, p := range points {
+				dist := manhattanDistance(x, y, p)
+				totDist += dist
+			}
+
+			if totDist <= 10000 {
+				below10kCount++
+			}
+
+		}
+	}
+
+	fmt.Println("below10kCount", below10kCount)
+}
+
+func manhattanDistance(x, y int, p *point) int {
+	return Abs(x-p.x) + Abs(y-p.y)
+}
+
+func Abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func maxInt(v []int) int {
+	m := math.MinInt64
+	for i, e := range v {
+		if e > m {
+			fmt.Println("i is bigest", i)
+			m = e
+		}
+	}
+	return m
 }

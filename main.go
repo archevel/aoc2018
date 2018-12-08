@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 func main() {
@@ -27,6 +28,8 @@ func main() {
 			door3_1()
 		case "4":
 			door4(scan_strings())
+		case "5":
+			door5(scan_strings())
 		default:
 			fmt.Println("Invalid door!")
 		}
@@ -308,4 +311,50 @@ func findBestTimeIn(g int, days [][]span) (int, int) {
 	}
 
 	return bestMin, maxOverlaps
+}
+
+func door5(lines []string) {
+
+	//var s scanner.Scanner
+	line := lines[0]
+	remaining := collapse(line)
+	fmt.Println("remaining:", remaining) //, string(remaining))
+
+	minSize := remaining
+	for _, c := range "abcdefghijklmnopqrstuvxyz" {
+		excludingChar := strings.Replace(strings.Replace(line, string(unicode.ToUpper(c)), "", -1), string(c), "", -1)
+		size := collapse(excludingChar)
+		if size < minSize {
+			minSize = size
+		}
+	}
+
+	fmt.Println("Minimized:", minSize)
+}
+
+func collapse(line string) int {
+
+	remaining := make([]rune, 0)
+	reader := strings.NewReader(line)
+	var destroys rune
+	for r, _, err := reader.ReadRune(); err != io.EOF; r, _, err = reader.ReadRune() {
+		if r == destroys && len(remaining) > 1 {
+			remaining = remaining[:len(remaining)-1]
+			r = remaining[len(remaining)-1]
+		} else if r == destroys {
+			remaining = remaining[:len(remaining)-1]
+			destroys = 0
+			continue
+		} else {
+			remaining = append(remaining, r)
+		}
+
+		if unicode.IsLower(r) {
+			destroys = unicode.ToUpper(r)
+		} else {
+			destroys = unicode.ToLower(r)
+		}
+	}
+
+	return len(remaining)
 }

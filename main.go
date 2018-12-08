@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -24,6 +25,8 @@ func main() {
 			door2_2(scan_strings())
 		case "3_1":
 			door3_1()
+		case "4":
+			door4(scan_strings())
 		default:
 			fmt.Println("Invalid door!")
 		}
@@ -207,4 +210,102 @@ func door3_1() {
 		}
 	}
 
+}
+
+const guard = `\[.+\] Guard #(\d+) .+`
+const sleep = `\[.+:0?(\d|\d\d)\] falls.+`
+const awakes = `\[.+:0?(\d|\d\d)\] wakes.+`
+
+type span struct {
+	start int
+	end   int
+}
+
+func door4(lines []string) {
+	sort.Strings(lines)
+
+	var guardRe = regexp.MustCompile(guard)
+	var sleepRe = regexp.MustCompile(sleep)
+	var awakesRe = regexp.MustCompile(awakes)
+	var curGuard int
+	var curSleepStart int
+	var curSpans []span
+	var curSpan span
+	guardSleep := make(map[int]int)
+	guardSleepSpans := make(map[int][][]span)
+	for _, line := range lines {
+
+		if matches := guardRe.FindStringSubmatch(line); len(matches) > 0 {
+			if curSpans != nil {
+				guardSleepSpans[curGuard] = append(guardSleepSpans[curGuard], curSpans)
+			}
+			curGuard, _ = strconv.Atoi(matches[1])
+			curSpans = make([]span, 0)
+		} else if matches := sleepRe.FindStringSubmatch(line); len(matches) > 0 {
+			curSleepStart, _ = strconv.Atoi(matches[1])
+			curSpan = span{curSleepStart, -1}
+		} else if matches := awakesRe.FindStringSubmatch(line); len(matches) > 0 {
+			awokeAt, _ := strconv.Atoi(matches[1])
+			curSpan.end = awokeAt
+			curSpans = append(curSpans, curSpan)
+			time := awokeAt - curSleepStart
+
+			guardSleep[curGuard] += time
+		}
+	}
+
+	guardSleepSpans[curGuard] = append(guardSleepSpans[curGuard], curSpans)
+	maxGuard := -1
+	maxTime := -1
+	for g, time := range guardSleep {
+		if time > maxTime {
+			maxTime = time
+			maxGuard = g
+		}
+	}
+
+	days := guardSleepSpans[maxGuard]
+	bestMin, bestOverlaps := findBestTimeIn(maxGuard, days)
+	fmt.Println("bestMin * guard", maxGuard*bestMin)
+
+	consistentTime := bestMin
+	consistentGuard := maxGuard
+	maxOverlaps := bestOverlaps
+	for guard, guardDays := range guardSleepSpans {
+
+		minute, overlaps := findBestTimeIn(guard, guardDays)
+		if overlaps >= maxOverlaps {
+			consistentGuard = guard
+			consistentTime = minute
+			maxOverlaps = overlaps
+		}
+	}
+
+	fmt.Println("consistentGuard * consistentTime", consistentGuard*(consistentTime), "guard", consistentGuard, "time", consistentTime)
+
+}
+
+func (s span) in(min int) bool {
+	return (s.start <= min) && (min < s.end)
+}
+
+func findBestTimeIn(g int, days [][]span) (int, int) {
+	bestMin := 0
+	maxOverlaps := 0
+	for i := 0; i < 60; i++ {
+		overlaps := 0
+		for _, d := range days {
+			for _, s := range d {
+				if s.in(i) {
+					overlaps++
+				}
+			}
+		}
+		if overlaps >= maxOverlaps {
+			maxOverlaps = overlaps
+			bestMin = i
+		}
+	}
+
+	return bestMin, maxOverlaps
 }

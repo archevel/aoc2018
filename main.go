@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"math"
@@ -33,6 +34,10 @@ func main() {
 			door5(scan_strings())
 		case "6":
 			door6(scan_strings())
+		case "7":
+			door7(scan_strings())
+		case "8":
+			door8()
 		default:
 			fmt.Println("Invalid door!")
 		}
@@ -480,4 +485,250 @@ func maxInt(v []int) int {
 		}
 	}
 	return m
+}
+
+func door7(lines []string) {
+	instructionRe := regexp.MustCompile(`Step (.+) must be finished before step (.+) can begin.`)
+	preToDeps := make(map[string][]string)
+	depToPrereqs := make(map[string][]string)
+
+	allSteps := make(map[string]bool)
+	isPrereq := make(map[string]bool)
+	hasPrereq := make(map[string]bool)
+
+	for _, line := range lines {
+		matches := instructionRe.FindStringSubmatch(line)
+
+		prereq := matches[1]
+		step := matches[2]
+		allSteps[step] = true
+		hasPrereq[step] = true
+
+		allSteps[prereq] = true
+		isPrereq[prereq] = true
+
+		prereqsForStep := preToDeps[prereq]
+		prereqsForStep = append(prereqsForStep, step)
+		preToDeps[prereq] = prereqsForStep
+
+		deps := depToPrereqs[step]
+		deps = append(deps, prereq)
+		depToPrereqs[step] = deps
+	}
+
+	var toExploreOrig string
+	for s, _ := range allSteps {
+		if !hasPrereq[s] {
+			toExploreOrig += s
+		}
+	}
+
+	toExplore := toExploreOrig
+	path := ""
+	/*	for len(toExplore) > 0 {
+			toExplore = SortString(toExplore)
+
+			nextSteps := calculateNextSteps(toExplore, path, depToPrereqs)
+			nextStep := strings.Split(nextSteps, "")[0]
+			path += nextStep
+			toExplore = expandStep(nextStep, path, toExplore, preToDeps)
+
+		}
+		fmt.Println(path)
+	/**/
+	toExplore = toExploreOrig
+	path = ""
+	times := make([]byte, 5)
+	work := make([]string, 5)
+	totalTime := 0
+	for len(toExplore) > 0 {
+		toExplore = SortString(toExplore)
+		nextSteps := calculateNextSteps(toExplore, path, depToPrereqs)
+		fmt.Println(nextSteps)
+		nextStepsSlice := strings.Split(nextSteps, "")
+		assigned := ""
+		for i := 0; i < len(nextStepsSlice); i++ {
+			s := nextStepsSlice[i]
+			workerIndex := bytes.IndexByte(times, 0)
+			if workerIndex < 0 {
+				break
+			}
+			assigned += s
+			stepWorkTime := workTimeFor(s)
+			work[workerIndex] = s
+			times[workerIndex] = stepWorkTime
+			toExplore = expandStep(s, path, toExplore, preToDeps)
+		}
+
+		// completeWork
+		completesIn := minNonZeroByte(times)
+		nextToFinish := bytes.IndexByte(times, completesIn)
+		finished := ""
+		for nextToFinish > -1 {
+			finished += work[nextToFinish]
+
+			times[nextToFinish] = 0
+			nextToFinish = bytes.IndexByte(times, completesIn)
+
+		}
+
+		path += SortString(finished)
+
+		for i := range times {
+			t := times[i]
+			if t == 0 {
+				work[i] = ""
+			} else {
+				times[i] -= completesIn
+			}
+		}
+		totalTime += int(completesIn)
+
+		//assigned, work, times = assignWork(nextSteps, work, times)
+		//assigned := SortString(assigned)
+		//for _, a := range assigned {
+
+		//}
+	}
+	fmt.Println(path, totalTime)
+	/**/
+}
+
+func SortString(w string) string {
+	s := strings.Split(w, "")
+	sort.Strings(s)
+	return strings.Join(s, "")
+}
+
+func calculateNextSteps(toExplore string, path string, depToPrereqs map[string][]string) string {
+
+	var nextSteps string
+	for _, s := range toExplore {
+		step := string(s)
+
+		prereqsMet := arePrereqsMet(step, path, depToPrereqs)
+		if prereqsMet {
+			nextSteps += step
+		}
+	}
+
+	return nextSteps
+}
+
+func arePrereqsMet(step string, path string, depToPrereqs map[string][]string) bool {
+	stepDependsOn := depToPrereqs[step]
+	prereqsMet := true
+	for _, d := range stepDependsOn {
+		if !strings.Contains(path, d) {
+			prereqsMet = false
+			break
+		}
+	}
+
+	return prereqsMet
+}
+
+func expandStep(nextStep, path, toExplore string, preToDeps map[string][]string) string {
+	toExplore = strings.Replace(toExplore, nextStep, "", -1)
+	deps := preToDeps[nextStep]
+	for _, d := range deps {
+		//fmt.Println(d, path, toExplore)
+		if !(strings.Contains(path, d) || strings.Contains(toExplore, d)) {
+
+			toExplore += d
+		}
+	}
+
+	return toExplore
+
+}
+
+func workTimeFor(step string) byte {
+	t := step[0]
+	t = t - 'A' + 61
+	return t
+}
+
+func minNonZeroByte(v []byte) byte {
+	m := byte(255)
+	for _, e := range v {
+		if e != 0 && e < m {
+			m = e
+		}
+	}
+	return m
+}
+
+/*
+func assignWork(nextSteps string, work [5]string, times [5]int) (string, [5]string, [5]int) {
+	return nextSteps, work, times
+}/**/
+
+type Node struct {
+	meta     []int
+	children []*Node
+}
+
+func door8() {
+
+	root := ReadNode()
+
+	sum := sumMeta(root)
+
+	fmt.Println(sum)
+
+	rootValue := valueNode(root)
+
+	fmt.Println(rootValue)
+}
+
+func sumMeta(node *Node) int {
+	sum := 0
+	for _, m := range node.meta {
+		sum += m
+	}
+
+	for _, c := range node.children {
+		sum += sumMeta(c)
+	}
+
+	return sum
+}
+
+func valueNode(node *Node) int {
+	if len(node.children) == 0 {
+		return sumMeta(node)
+	}
+
+	value := 0
+	for _, m := range node.meta {
+		index := m - 1
+		if index >= 0 && index < len(node.children) {
+			value += valueNode(node.children[index])
+		}
+	}
+	return value
+}
+
+func ReadNode() *Node {
+	var childCount int
+	var metaCount int
+	fmt.Fscan(os.Stdin, &childCount)
+	fmt.Fscan(os.Stdin, &metaCount)
+
+	children := make([]*Node, childCount)
+	meta := make([]int, metaCount)
+	for i := 0; i < childCount; i++ {
+		child := ReadNode()
+		children[i] = child
+	}
+
+	for i := 0; i < metaCount; i++ {
+		var m int
+		fmt.Fscan(os.Stdin, &m)
+		meta[i] = m
+	}
+
+	node := Node{meta, children}
+	return &node
 }

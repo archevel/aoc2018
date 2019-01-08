@@ -38,6 +38,8 @@ func main() {
 			door7(scan_strings())
 		case "8":
 			door8()
+		case "9":
+			door9()
 		default:
 			fmt.Println("Invalid door!")
 		}
@@ -731,4 +733,23 @@ func ReadNode() *Node {
 
 	node := Node{meta, children}
 	return &node
+}
+
+func door9() {
+
+	fmt.Println(calc_game_score(10, 1618))
+}
+
+type marble struct {
+	num               int
+	clockwise         *marble
+	counter_clockwise *marble
+}
+
+func calc_game_score(players, last_marble int) int {
+	current_marble := &marble{0}
+	for i := 1; i < last_marble+1; i++ {
+
+	}
+	return 0
 }
